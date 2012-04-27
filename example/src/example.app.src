@@ -1,0 +1,21 @@
+{application, example,
+ [
+  {description, ""},
+  {vsn, "1"},
+  {registered, []},
+  {applications, [
+                  kernel,
+                  stdlib,
+                  sqlmig,
+                  crypto
+                 ]},
+  {included_applications, [edb]},
+  {mod, { example_app, []}},
+  {env, [
+    %% This will work if you have your current user
+    %% in PostreSQL with no password and edb_example database is created
+    {postgresql, [{hostname, "localhost"},
+                  {database, "edb_example"},
+                  {password, ""}]}
+  ]}
+ ]}.
