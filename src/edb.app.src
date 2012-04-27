@@ -1,0 +1,19 @@
+{application, edb,
+ [
+  {description, "Tiny Database RRM (Records Relational Mapper)"},
+  {vsn, git},
+  {registered, []},
+  {applications, [
+                  kernel,
+                  stdlib,
+                  esupervisor,
+                  lager,
+                  epgsql,
+                  poolboy
+                 ]},
+  {mod, { edb_app, []}},
+  {env, [
+         {postgresql, [{hostname, "localhost"}
+                      ]}
+        ]}
+ ]}.
