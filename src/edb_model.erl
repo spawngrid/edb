@@ -13,7 +13,7 @@
          delete/1]).
 -export([record_mapping/2, table_name/1, 
          attribute/2, attributes/1, with/2]).
--export([record_info/1,table/1]).
+-export([record_info/1,table/1, to_proplist/1]).
 -compile({parse_transform, lager_transform}).
 -compile({parse_transform, seqbind}).
 
@@ -55,6 +55,9 @@ record_mapping(Name, Tuple) ->
 record_info(Tuple) ->
     Module = element(1, Tuple),
     Module:record_info().
+
+to_proplist(Tuple) ->
+    lists:zip(Tuple:record_info(), tl(tuple_to_list(Tuple))).
 
 %% QLC
 
