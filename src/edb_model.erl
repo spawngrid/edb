@@ -196,7 +196,7 @@ update(PropList, Tuple) when is_list(PropList), is_tuple(Tuple) ->
                                (Index == undefined) andalso throw({invalid_field, K}),
                                setelement(Index + 1,
                                           Acc, V)
-                end, Tuple, PropList), Tuple);
+                end, Tuple, normalize_proplist(PropList)), Tuple);
 
 update(NewTuple, Tuple) when 
       is_tuple(NewTuple), is_tuple(Tuple),
@@ -212,6 +212,18 @@ update_1(NewTuple, Tuple, [_Name|Names], [H|T],[H|T1]) ->
 update_1(NewTuple, Tuple, [Name|Names], [H|T],[_|T1]) ->
     New = Tuple:Name(H),
     update_1(NewTuple,New,Names,T,T1).
+
+normalize_proplist([]) ->
+    [];
+normalize_proplist([{K,V}|T]) ->
+    [{normalize_proplist_1(K),V}|normalize_proplist(T)].
+
+normalize_proplist_1(B) when is_binary(B) ->
+    binary_to_atom(B, latin1);
+normalize_proplist_1(S) when is_list(S) ->
+    list_to_atom(S);
+normalize_proplist_1(A) ->
+    A.
 
 
 %% Deleting
