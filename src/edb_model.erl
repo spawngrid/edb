@@ -242,7 +242,7 @@ create(Tuple0) ->
     IdNdx = field_index(id, Tuple),
     Table = Tuple:table_name(),
     Columns = lists:zip(Module:record_info(),lists:seq(1,length(Module:record_info()))),
-    Values = tl(tuple_to_list(Tuple)),
+    Values = coerce_values(tl(tuple_to_list(Tuple))),
     Inserts = lists:reverse(lists:foldl(fun (V,A) -> insert(V,A,Tuple) end,
                                         [],
                                         lists:zip(Values, Columns))),
@@ -277,7 +277,7 @@ save_or_create(_Id, Tuple0) ->
     Id = element(IdNdx + 1, Tuple),
     Table = Tuple:table_name(),
     Columns = lists:zip(Module:record_info(),lists:seq(1,length(Module:record_info()))),
-    Values = tl(tuple_to_list(Tuple)),
+    Values = coerce_values(tl(tuple_to_list(Tuple))),
     Updates = lists:reverse(lists:foldl(fun (V,A) -> update(V,A,Tuple) end,
                                         [],
                                         lists:zip(Values, Columns))),
@@ -414,7 +414,7 @@ find(Opts, Tuple) ->
 
     ColumnNamesClause = string:join(ColumnNames ++ IncludesNames, ", "),
     
-    Values = tl(tuple_to_list(Tuple)),
+    Values = coerce_values(tl(tuple_to_list(Tuple))),
     
     Conditions@ = case proplists:get_value(conditions, Opts) of
                      undefined ->
@@ -775,3 +775,10 @@ safe_table_name(Table) ->
 
 parse_transform(Forms, Options) ->
     edb_model_transform:parse_transform(Forms, Options).
+
+coerce_values(Values) ->
+    [ coerce_value(Value) || Value <- Values ].
+coerce_value(undefined) ->
+    null;
+coerce_value(Other) ->
+    Other.
