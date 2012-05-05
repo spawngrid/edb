@@ -63,6 +63,25 @@ do_parse_transform(Forms@, Options) ->
                                  parse_trans:export_function(Name, Arity, Acc)
                 end, Forms@,GetSetForms),
 
+    %% empty/0
+    Forms@ = 
+    case parse_trans:function_exists(empty, 0, Forms@) of
+        true -> %% do nothing, empty/0 is overriden
+            Forms@;
+        false ->
+                     add_function(empty, 0,
+                                  [
+                                   {function, 0, empty, 0, 
+                                    [{clause, 0, [], [],
+                                      [ %% body
+                                        {call, 0, {remote, 0, 
+                                                   {atom, 0, Module},
+                                                   {atom, 0, empty}},
+                                         [{call, 0, {atom, 0, new}, []}]}
+                                        
+                                      ]}]}],
+                                  Forms@, Options)
+    end,    
     %% new/0
     Forms@ = 
     case parse_trans:function_exists(new, 0, Forms@) of

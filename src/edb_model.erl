@@ -13,7 +13,7 @@
          delete/1]).
 -export([record_mapping/2, table_name/1, 
          attribute/2, attributes/1, with/2]).
--export([record_info/1,table/1, to_proplist/1, to_dict/1]).
+-export([record_info/1,table/1, to_proplist/1, to_dict/1, empty/1]).
 -compile({parse_transform, lager_transform}).
 -compile({parse_transform, seqbind}).
 
@@ -61,6 +61,16 @@ to_proplist(Tuple) ->
 
 to_dict(Tuple) ->
     dict:from_list(Tuple:to_proplist()).
+
+empty(Tuple) ->
+    lists:foldl(fun(Field, Acc) ->
+                        Val = Acc:Field(),
+                        if Val == not_loaded ->
+                                Acc:Field(undefined);
+                           true ->
+                                Acc
+                        end
+                end, Tuple, Tuple:record_info()).
 
 %% QLC
 
