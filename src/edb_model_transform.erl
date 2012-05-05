@@ -121,7 +121,7 @@ do_parse_transform(Forms@, Options) ->
                                                    {atom, 0, Module},
                                                    {atom, 0, update}},
                                          [
-                                 {var, 0, 'PropList'},
+                                          {var, 0, 'PropList'},
                                           {call, 0, {atom, 0, new}, []}
                                          ]
                                         }]}]}
