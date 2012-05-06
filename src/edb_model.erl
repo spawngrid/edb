@@ -14,6 +14,7 @@
 -export([record_mapping/2, table_name/1, 
          attribute/2, attributes/1, with/2]).
 -export([record_info/1,table/1, to_proplist/1, to_dict/1, empty/1]).
+-export([whitelist/1, whitelisted/1, whitelisted/2]).
 -compile({parse_transform, lager_transform}).
 -compile({parse_transform, seqbind}).
 
@@ -72,6 +73,20 @@ empty(Tuple) ->
                         end
                 end, Tuple, Tuple:record_info()).
 
+whitelist(Tuple) ->
+    Module = element(1, Tuple),
+    Attrs = Module:module_info(attributes),
+    proplists:get_value(whitelist, Attrs, []).
+
+whitelisted(Tuple) ->
+    Module = element(1, Tuple),
+    Tuple:whitelisted(Module:new()).
+
+whitelisted(Prev, Tuple) ->
+    Whitelist = Tuple:whitelist(),
+    Prev:update(lists:zip(Whitelist,
+                          [ Tuple:F() || F <- Whitelist ])).
+    
 %% QLC
 
 table(Tuple) ->
