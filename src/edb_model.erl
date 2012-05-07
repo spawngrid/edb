@@ -3,6 +3,7 @@
 -export([after_new/1]).
 -export([after_load/1,
          find_or_create/1, find_or_create/2,
+         default_find_options/1,
          find/1,find/2,load/1]).
 -export([update/2]).
 -export([before_save/1,before_create/1,
@@ -416,13 +417,21 @@ find_or_create(Opts, Tuple) ->
             Result
     end.
 
+default_find_options(Tuple) ->
+    Module = element(1, Tuple),
+    proplists:get_value(find,
+                        Module:module_info(attributes),
+                        []).
+
 find(Tuple) ->
     Tuple:find([]).
 
-find(Opts, Tuple) ->
+find(Opts0, Tuple) ->
     Module = element(1, Tuple),
     Table = Tuple:table_name(),
 
+    Opts = [Opts0|Tuple:default_find_options()],
+    
     Select = case proplists:get_value(select, Opts, Module:record_info()) of
                  A when is_atom(A) ->
                      [A];
