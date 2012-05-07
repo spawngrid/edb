@@ -639,19 +639,19 @@ join(Relation, Tuple) ->
         {belongs_to, Opts} ->
             RelTable = proplists:get_value(table, Opts),
             FKey = proplists:get_value(foreign_key, Opts),
-            " INNER JOIN " ++ safe_table_name(RelTable) ++ " " ++
+            " LEFT OUTER JOIN " ++ safe_table_name(RelTable) ++ " " ++
             "ON " ++ safe_column_name(RelTable,"id") ++ " = " ++ 
                 safe_column_name(Table, FKey) ++ " ";
         {has_many, Opts} ->
             RelTable = proplists:get_value(table, Opts),
             FKey = proplists:get_value(foreign_key, Opts),
-            " INNER JOIN " ++ safe_table_name(RelTable) ++ " " ++
+            " LEFT OUTER JOIN " ++ safe_table_name(RelTable) ++ " " ++
             "ON " ++ safe_column_name(RelTable,FKey) ++ " = " ++ 
                 safe_column_name(Table, "id") ++ " ";
         {has_one, Opts} ->
             RelTable = proplists:get_value(table, Opts),
             FKey = proplists:get_value(foreign_key, Opts),
-            " INNER JOIN " ++ safe_table_name(RelTable) ++ " " ++
+            " LEFT OUTER JOIN " ++ safe_table_name(RelTable) ++ " " ++
             "ON " ++ safe_column_name(RelTable,FKey) ++ " = " ++ 
                 safe_column_name(Table, "id") ++ " ";
         _ ->
