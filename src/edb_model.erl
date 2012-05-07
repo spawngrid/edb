@@ -149,7 +149,7 @@ normalize_attribute(M,T,A) when is_atom(A) ->
 normalize_attribute(M,T,{A}) when is_atom(A) ->
     normalize_attribute(M,T,{A, []});
 normalize_attribute(_Module, belongs_to, {A,Opts}) when is_atom(A) andalso is_list(Opts) ->
-    Model = proplists:get_value(model, Opts, list_to_atom(?PREFIX ++ inflector:camelize(atom_to_list(A)))),
+    Model = list_to_atom(?PREFIX ++ inflector:camelize(atom_to_list(proplists:get_value(model, Opts, A)))),
     Defaults = [{model, Model}, 
                 {table, (Model:new()):table_name()},
                 {foreign_key, 
@@ -157,10 +157,10 @@ normalize_attribute(_Module, belongs_to, {A,Opts}) when is_atom(A) andalso is_li
                 }
                ],
     {A, lists:ukeymerge(1, 
-                        lists:ukeysort(1,Opts),
+                        lists:ukeysort(1,lists:keydelete(model, 1, Opts)),
                         lists:ukeysort(1,Defaults))};
 normalize_attribute(Module,has_one, {A,Opts}) when is_atom(A) andalso is_list(Opts) ->
-    Model = proplists:get_value(model, Opts, list_to_atom(?PREFIX ++ inflector:camelize(atom_to_list(A)))),
+    Model = list_to_atom(?PREFIX ++ inflector:camelize(atom_to_list(proplists:get_value(model, Opts, A)))),
 
     Defaults = [{model, Model},
                 {table, (Model:new()):table_name()},
@@ -178,10 +178,10 @@ normalize_attribute(Module,has_one, {A,Opts}) when is_atom(A) andalso is_list(Op
                 }
                ],
     {A, lists:ukeymerge(1, 
-                        lists:ukeysort(1,Opts),
+                        lists:ukeysort(1,lists:keydelete(model, 1, Opts)),
                         lists:ukeysort(1,Defaults))};
 normalize_attribute(Module,has_many, {A,Opts}) when is_atom(A) andalso is_list(Opts) ->
-    Model = proplists:get_value(model, Opts, list_to_atom(?PREFIX ++ inflector:singularize(inflector:camelize(atom_to_list(A))))),
+    Model = list_to_atom(?PREFIX ++ inflector:singularize(inflector:camelize(atom_to_list(proplists:get_value(model, Opts, A))))),
     Defaults = [{model, Model},
                 {table, (Model:new()):table_name()},
                 {foreign_key, 
@@ -198,7 +198,7 @@ normalize_attribute(Module,has_many, {A,Opts}) when is_atom(A) andalso is_list(O
                 }
                ],
     {A, lists:ukeymerge(1, 
-                        lists:ukeysort(1,Opts),
+                        lists:ukeysort(1,lists:keydelete(model, 1, Opts)),
                         lists:ukeysort(1,Defaults))}.
 
 %% /Attributes
