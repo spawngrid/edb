@@ -19,7 +19,7 @@
 -compile({parse_transform, lager_transform}).
 -compile({parse_transform, seqbind}).
 
--define(ATTRS,[belongs_to,has_one,has_many]).
+-define(ATTRS,[belongs_to,has_one,has_many,virtual]).
 -define(PREFIX, prefix()).
 
 prefix() ->
@@ -199,7 +199,9 @@ normalize_attribute(Module,has_many, {A,Opts}) when is_atom(A) andalso is_list(O
                ],
     {A, lists:ukeymerge(1, 
                         lists:ukeysort(1,lists:keydelete(model, 1, Opts)),
-                        lists:ukeysort(1,Defaults))}.
+                        lists:ukeysort(1,Defaults))};
+normalize_attribute(_Module, virtual, {A, Opts}) when is_atom(A) andalso is_list(Opts) ->
+    {A, Opts}.
 
 %% /Attributes
 
