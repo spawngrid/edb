@@ -289,8 +289,10 @@ create(Tuple0) ->
     Inserts = lists:reverse(lists:foldl(fun (V,A) -> insert(V,A,Tuple) end,
                                         [],
                                         lists:zip(Values, Columns))),
-    ColumnNamesClause = string:join([Name||{Name,_,_} <- Inserts],", "),
-    Bindings = string:join([Binding||{_,Binding,_} <- Inserts],", "),
+    ColumnNamesClause = string:join([Name||{Name,_,_} <- Inserts] ++
+                                    [Name||{Name,_} <- Inserts],", "),
+    Bindings = string:join([Binding||{_,Binding,_} <- Inserts] ++
+                           [Asis||{_,Asis} <- Inserts],", "),
     Vals = [Val||{_,_,Val} <- Inserts],
     Query = 
         "INSERT INTO " ++ Table ++ " (" ++ ColumnNamesClause ++ ") "
@@ -324,12 +326,14 @@ save_or_create(_Id, Tuple0) ->
     Updates = lists:reverse(lists:foldl(fun (V,A) -> update(V,A,Tuple) end,
                                         [],
                                         lists:zip(Values, Columns))),
-    ColumnNamesClause = string:join([Name ++ 
-                                         " = " ++ Binding||{Name,Binding,_} <- Updates],", "),
+    ColumnNamesClause = string:join(
+                          [Name ++ " = " ++ Binding||{Name,Binding,_} <- Updates] ++
+                          [Name ++ " = " ++ Binding||{Name, Binding} <- Updates ]
+                          ,", "),
     Vals = [Val||{_,_,Val} <- Updates] ++ [Id],
     Query = 
         "UPDATE " ++ Table ++ " SET " ++ ColumnNamesClause ++ " "
-        "WHERE " ++ safe_column_name(Table, "id") ++ " = $" ++ integer_to_list(length(Updates) + 1), 
+        "WHERE " ++ safe_column_name(Table, "id") ++ " = $" ++ integer_to_list(clength(Updates) + 1), 
     %%
     lager:debug([{edb_model, Module}],"~w:save query: ~s, bindings: ~p",[Module,Query,Vals]),
     %%
@@ -346,19 +350,22 @@ insert({not_loaded,_},L,_Tuple) ->
     L;
 insert({List, {_Col, _Index}},L,_Tuple) when is_list(List) ->
     L; %% skip
+insert({{asis, Asis}, {Col, _Index}},L,Tuple) ->
+    [{Tuple:record_mapping(Col),
+      Asis}|L];
 insert({RelTuple,{Col,_Index}},L,Tuple) when is_tuple(RelTuple), is_atom(element(1, RelTuple)) ->
     case Tuple:attribute(Col) of
         {belongs_to, _Opts} ->
             RelIdNdx = field_index(id, RelTuple),
             RelId = relation_id(RelTuple, RelIdNdx),
             [{Tuple:record_mapping(Col),
-              "$" ++ integer_to_list(length(L) + 1), RelId}|L];
+              "$" ++ integer_to_list(clength(L) + 1), RelId}|L];
         _ ->
             L
     end;
 insert({Value,{Col,_Index}},L,Tuple) ->
     [{Tuple:record_mapping(Col),
-      "$" ++ integer_to_list(length(L) + 1), Value}|L].
+      "$" ++ integer_to_list(clength(L) + 1), Value}|L].
 update({virtual, _},L,_Tuple) ->
     L;
 update({not_loaded,_},L,_Tuple) ->
@@ -367,19 +374,22 @@ update({List, {_Col, _Index}},L,_Tuple) when is_list(List) ->
     L; %% skip
 update({_, {id, _Index}},L,_Tuple) ->
     L; %% skip id
+update({{asis, Asis}, {Col, _Index}},L,Tuple) ->
+    [{Tuple:record_mapping(Col),
+      Asis}|L];
 update({RelTuple,{Col,_Index}},L,Tuple) when is_tuple(RelTuple), is_atom(element(1, RelTuple)) ->
     case Tuple:attribute(Col) of
         {belongs_to, _Opts} ->
             RelIdNdx = field_index(id, RelTuple),
             RelId = relation_id(RelTuple, RelIdNdx),
             [{Tuple:record_mapping(Col),
-              "$" ++ integer_to_list(length(L) + 1), RelId}|L];
+              "$" ++ integer_to_list(clength(L) + 1), RelId}|L];
         _ ->
             L
     end;
 update({Value,{Col,_Index}},L,Tuple) ->
     [{Tuple:record_mapping(Col),
-      "$" ++ integer_to_list(length(L) + 1), Value}|L].
+      "$" ++ integer_to_list(clength(L) + 1), Value}|L].
 
 relation_id(RelTuple, RelIdNdx) ->
     case element(RelIdNdx + 1, RelTuple) of
@@ -395,6 +405,9 @@ relation_id(RelTuple, RelIdNdx) ->
             ok
     end,
     RelId.
+
+clength(L) ->
+    length([V||{_,_,_}=V <- L]).
 
 %% /Saving
 
