@@ -110,13 +110,22 @@ coerce([]) ->
 coerce([{Param,Type}|T]) ->
     [coerce_1(Param, Type)|coerce(T)].
 
+coerce_1(<<>>, Num) when
+                      (Num == int2 orelse
+                       Num == int4 orelse
+                       Num == int8) ->
+    null;
 coerce_1(B, Num) when is_binary(B) andalso
                       (Num == int2 orelse
                        Num == int4 orelse
                        Num == int8) ->
     {I,_} = string:to_integer(binary_to_list(B)),
     I;
-    
+
+coerce_1(<<>>, Num) when 
+                      (Num == float4 orelse
+                       Num == float8) ->
+    null;
 coerce_1(B, Num) when is_binary(B) andalso
                       (Num == float4 orelse
                        Num == float8) ->
