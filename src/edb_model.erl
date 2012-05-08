@@ -16,6 +16,7 @@
          attribute/2, attributes/1, with/2]).
 -export([record_info/1,table/1, to_proplist/1, to_dict/1, empty/1]).
 -export([whitelist/1, whitelisted/1, whitelisted/2]).
+-export([validations/1, valid/1]).
 -compile({parse_transform, lager_transform}).
 -compile({parse_transform, seqbind}).
 
@@ -87,6 +88,18 @@ whitelisted(Prev, Tuple) ->
     Whitelist = Tuple:whitelist(),
     Prev:update(lists:zip(Whitelist,
                           [ Tuple:F() || F <- Whitelist ])).
+
+validations(_Tuple) ->
+    [].
+
+valid(Tuple) ->
+    Validations = [ {Name, Tuple:Name(), Spec} || {Name, Spec} <- Tuple:validations() ],
+    case validaterl:validate(Validations) of
+        [] ->
+            true;
+        Other ->
+            Other
+    end.
     
 %% QLC
 
@@ -280,31 +293,36 @@ after_save(Tuple) ->
 
 create(Tuple0) ->
     Tuple = (Tuple0:before_save()):before_create(),
-
-    Module = element(1, Tuple),
-    IdNdx = field_index(id, Tuple),
-    Table = Tuple:table_name(),
-    Columns = lists:zip(Module:record_info(),lists:seq(1,length(Module:record_info()))),
-    Values = tl(tuple_to_list(Tuple)),
-    Inserts = lists:reverse(lists:foldl(fun (V,A) -> insert(V,A,Tuple) end,
-                                        [],
-                                        lists:zip(Values, Columns))),
-    ColumnNamesClause = string:join([Name||{Name,_,_} <- Inserts] ++
-                                    [Name||{Name,_} <- Inserts],", "),
-    Bindings = string:join([Binding||{_,Binding,_} <- Inserts] ++
-                           [Asis||{_,Asis} <- Inserts],", "),
-    Vals = [Val||{_,_,Val} <- Inserts],
-    Query = 
-        "INSERT INTO " ++ Table ++ " (" ++ ColumnNamesClause ++ ") "
-        "VALUES (" ++ Bindings ++ ") RETURNING " ++ safe_column_name(Table, "id"),
-    %%
-    lager:debug([{edb_model, Module}],"~w:save (create) query: ~s, bindings: ~p",[Module,Query,Vals]),
-    %%
-    case edb:equery(Query, Vals) of
-        {ok, 1, _, [{Id}]} ->
-            ((setelement(IdNdx + 1, Tuple, Id)):after_create()):after_save();
-        Error ->
-            Error
+    
+    case Tuple:valid() of
+        true ->
+            Module = element(1, Tuple),
+            IdNdx = field_index(id, Tuple),
+            Table = Tuple:table_name(),
+            Columns = lists:zip(Module:record_info(),lists:seq(1,length(Module:record_info()))),
+            Values = tl(tuple_to_list(Tuple)),
+            Inserts = lists:reverse(lists:foldl(fun (V,A) -> insert(V,A,Tuple) end,
+                                                [],
+                                                lists:zip(Values, Columns))),
+            ColumnNamesClause = string:join([Name||{Name,_,_} <- Inserts] ++
+                                                [Name||{Name,_} <- Inserts],", "),
+            Bindings = string:join([Binding||{_,Binding,_} <- Inserts] ++
+                                       [Asis||{_,Asis} <- Inserts],", "),
+            Vals = [Val||{_,_,Val} <- Inserts],
+            Query = 
+                "INSERT INTO " ++ Table ++ " (" ++ ColumnNamesClause ++ ") "
+                "VALUES (" ++ Bindings ++ ") RETURNING " ++ safe_column_name(Table, "id"),
+            %%
+            lager:debug([{edb_model, Module}],"~w:save (create) query: ~s, bindings: ~p",[Module,Query,Vals]),
+            %%
+            case edb:equery(Query, Vals) of
+                {ok, 1, _, [{Id}]} ->
+                    ((setelement(IdNdx + 1, Tuple, Id)):after_create()):after_save();
+                Error ->
+                    Error
+            end;
+        Errors ->
+            {errors, Errors}
     end.
 
 save(Tuple) ->
@@ -316,32 +334,36 @@ save_or_create(not_loaded, Tuple0) ->
     create(Tuple0);
 save_or_create(_Id, Tuple0) ->
     Tuple = Tuple0:before_save(),
-
-    Module = element(1, Tuple),
-    IdNdx = field_index(id, Tuple),
-    Id = element(IdNdx + 1, Tuple),
-    Table = Tuple:table_name(),
-    Columns = lists:zip(Module:record_info(),lists:seq(1,length(Module:record_info()))),
-    Values = tl(tuple_to_list(Tuple)),
-    Updates = lists:reverse(lists:foldl(fun (V,A) -> update(V,A,Tuple) end,
-                                        [],
+    case Tuple:valid() of
+        true ->
+            Module = element(1, Tuple),
+            IdNdx = field_index(id, Tuple),
+            Id = element(IdNdx + 1, Tuple),
+            Table = Tuple:table_name(),
+            Columns = lists:zip(Module:record_info(),lists:seq(1,length(Module:record_info()))),
+            Values = tl(tuple_to_list(Tuple)),
+            Updates = lists:reverse(lists:foldl(fun (V,A) -> update(V,A,Tuple) end,
+                                                [],
                                         lists:zip(Values, Columns))),
-    ColumnNamesClause = string:join(
-                          [Name ++ " = " ++ Binding||{Name,Binding,_} <- Updates] ++
-                          [Name ++ " = " ++ Binding||{Name, Binding} <- Updates ]
-                          ,", "),
-    Vals = [Val||{_,_,Val} <- Updates] ++ [Id],
-    Query = 
-        "UPDATE " ++ Table ++ " SET " ++ ColumnNamesClause ++ " "
-        "WHERE " ++ safe_column_name(Table, "id") ++ " = $" ++ integer_to_list(clength(Updates) + 1), 
-    %%
-    lager:debug([{edb_model, Module}],"~w:save query: ~s, bindings: ~p",[Module,Query,Vals]),
-    %%
-    case edb:equery(Query, Vals) of
-        {ok, N} when N == 0 orelse N == 1 -> %% 0 happens when nothing has changed
-            Tuple:after_save();
-        Error ->
-            Error
+            ColumnNamesClause = string:join(
+                                  [Name ++ " = " ++ Binding||{Name,Binding,_} <- Updates] ++
+                                      [Name ++ " = " ++ Binding||{Name, Binding} <- Updates ]
+                                  ,", "),
+            Vals = [Val||{_,_,Val} <- Updates] ++ [Id],
+            Query = 
+                "UPDATE " ++ Table ++ " SET " ++ ColumnNamesClause ++ " "
+                "WHERE " ++ safe_column_name(Table, "id") ++ " = $" ++ integer_to_list(clength(Updates) + 1), 
+            %%
+            lager:debug([{edb_model, Module}],"~w:save query: ~s, bindings: ~p",[Module,Query,Vals]),
+            %%
+            case edb:equery(Query, Vals) of
+                {ok, N} when N == 0 orelse N == 1 -> %% 0 happens when nothing has changed
+                    Tuple:after_save();
+                Error ->
+                    Error
+            end;
+        Errors ->
+            {errors, Errors}
     end.
 % where
 insert({virtual, _},L,_Tuple) ->
