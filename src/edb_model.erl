@@ -285,7 +285,7 @@ create(Tuple0) ->
     IdNdx = field_index(id, Tuple),
     Table = Tuple:table_name(),
     Columns = lists:zip(Module:record_info(),lists:seq(1,length(Module:record_info()))),
-    Values = coerce_values(tl(tuple_to_list(Tuple))),
+    Values = tl(tuple_to_list(Tuple)),
     Inserts = lists:reverse(lists:foldl(fun (V,A) -> insert(V,A,Tuple) end,
                                         [],
                                         lists:zip(Values, Columns))),
@@ -322,7 +322,7 @@ save_or_create(_Id, Tuple0) ->
     Id = element(IdNdx + 1, Tuple),
     Table = Tuple:table_name(),
     Columns = lists:zip(Module:record_info(),lists:seq(1,length(Module:record_info()))),
-    Values = coerce_values(tl(tuple_to_list(Tuple))),
+    Values = tl(tuple_to_list(Tuple)),
     Updates = lists:reverse(lists:foldl(fun (V,A) -> update(V,A,Tuple) end,
                                         [],
                                         lists:zip(Values, Columns))),
@@ -478,7 +478,7 @@ find(Opts0, Tuple) ->
 
     ColumnNamesClause = string:join(ColumnNames ++ IncludesNames, ", "),
     
-    Values = coerce_values(tl(tuple_to_list(Tuple))),
+    Values = tl(tuple_to_list(Tuple)),
     
     Conditions@ = case proplists:get_value(conditions, Opts) of
                      undefined ->
@@ -521,7 +521,8 @@ find(Opts0, Tuple) ->
     Results = 
         case edb:equery(Query, Vals@) of
             {ok, _, L} when is_list(L) ->
-                [ encode_finding([{Module, ColumnFields}|Includes], Tuple, ColumnNames ++ IncludesNames, 
+                [ encode_finding([{Module, ColumnFields}|Includes], 
+                                 Tuple, ColumnNames ++ IncludesNames, 
                                  ensure_list(proplists:get_value(include, Opts, [])),
                                  T)
                   || T <- L ]
@@ -599,7 +600,7 @@ where(Base, Values, Columns, Tuple) ->
                                 Acc;
                            ({not_loaded,_},Acc) ->
                                 Acc;
-                           ({null,{Col,_Index}},{L,V}) ->
+                           ({undefined,{Col,_Index}},{L,V}) ->
                                 {[safe_column_name(Table,Tuple:record_mapping(Col)) ++ 
                                       " IS NULL"|L], V};
                            ({Val,{Col,_Index}},{L,V}) ->
@@ -698,7 +699,7 @@ encode_finding(ColumnFields, Tuple, Cs, Includes, T) ->
                                                              false
                                                      end
                                              end,
-                                             lists:zip(Cs, tuple_to_list(T)))),
+                                             lists:zip(Cs, [ case X of null -> undefined; _ -> X end || X <- tuple_to_list(T) ]))),
             Instance = lists:foldl(fun({{_Field, Index}, Value}, Acc) ->
                                            setelement(Index + 1, Acc, Value)
                                    end, Tuple, lists:zip(ModuleColumnFields, L)),
@@ -839,10 +840,3 @@ safe_table_name(Table) ->
 
 parse_transform(Forms, Options) ->
     edb_model_transform:parse_transform(Forms, Options).
-
-coerce_values(Values) ->
-    [ coerce_value(Value) || Value <- Values ].
-coerce_value(undefined) ->
-    null;
-coerce_value(Other) ->
-    Other.

@@ -122,6 +122,7 @@ coerce_1(B, Num) when is_binary(B) andalso
                        Num == float8) ->
     {F,_} = string:to_float(binary_to_list(B)),
     F;
-
+coerce_1(undefined, _) ->
+    null;
 coerce_1(Other, _) ->
     Other.
